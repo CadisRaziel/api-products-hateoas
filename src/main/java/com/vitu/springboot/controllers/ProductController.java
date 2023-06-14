@@ -16,6 +16,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+
 @RestController
 public class ProductController {
     @Autowired
@@ -43,7 +46,25 @@ public class ProductController {
 
     @GetMapping("/products")
     public ResponseEntity<List<ProductModel>> getAllProducts() {
-        return ResponseEntity.status(HttpStatus.OK).body(productRepository.findAll());
+        List<ProductModel> productModelList = productRepository.findAll();
+        if(!productModelList.isEmpty()){
+            for(ProductModel productModel : productModelList){
+               UUID id = productModel.getIdProduct(); //-> obtendo o id do produto
+
+                //O link vai direciona ele para o metodo que vai pegar um produto especifico(imagina um e-commerce gigantesco, e cada produto vai para
+                //a pagina de detalhe especifica, o front fazer isso na mão seria absurdo, então damos ao front uma maneira mais facil, criando links aonde
+                //se ele clicar em um produto especifico ele vai ser levado ao getByID, ou seja no getAll vai ter o monitor dell, porém la vai ter um link que vai
+                //leva ele pro getByID do monitor dell, e assim podemos criar um getBiId com mais atributos para uma pagina de 'detalhes do produto'
+
+
+                //linkTo -> criando um link para cada atribudo da lista (para qual metodo eu vou redirecionar o cliente quando ele clicar nesse link)
+                //methodOn -> o controller que esta esse metodo e qual é o metodo que ele vai redirecionar
+                //getOneProduct -> o nome do metodo que criamos aqui no controller para pegar um produto
+                //withSelfRel -> vai ser redirecionado para o produto especifico
+               productModel.add(linkTo(methodOn(ProductController.class).getOneProduct(id)).withSelfRel());
+            }
+        }
+        return ResponseEntity.status(HttpStatus.OK).body(productModelList);
     }
 
     @GetMapping("/products/{id}")
@@ -55,6 +76,13 @@ public class ProductController {
         if(productO.isEmpty()){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Product not found");
         }
+
+        //quando ele estiver no getByID e quiser voltar pra lista do getAll nós criaremos um link e daremos isso ao front
+        //porém passar essa link pra getAll ja não acho tao pratico pois é só por um backbutton ou outra coisa pra volta pro getAll
+        //mais se precisar temos essa opção
+
+        //withRel -> nome do link que vai ser criado
+        productO.get().add(linkTo(methodOn(ProductController.class).getAllProducts()).withRel("List of products"));
         return ResponseEntity.status(HttpStatus.OK).body(productO.get()); //get -> quando usamos o Optional precisamos utilizar esse .get()
     }
 
